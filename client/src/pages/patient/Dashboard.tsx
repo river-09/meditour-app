@@ -20,6 +20,13 @@ const PatientDashboard: React.FC = () => {
 
   const menuItems = [
     {
+      title: 'Set Up Profile',
+      description: 'Complete your medical profile with health information',
+      icon: '📋',
+      onClick: () => navigate('/patient/setup-profile'),
+      isHighlight: true,
+    },
+    {
       title: 'Find Specialists',
       description: 'Search and connect with medical specialists worldwide',
       icon: '🔍',
@@ -28,7 +35,7 @@ const PatientDashboard: React.FC = () => {
     {
       title: 'My Medical Records',
       description: 'Upload and manage your medical reports and documents',
-      icon: '📋',
+      icon: '📄',
       onClick: () => navigate('/patient/medical-records'),
     },
     {
@@ -40,19 +47,19 @@ const PatientDashboard: React.FC = () => {
     {
       title: 'Consultations',
       description: 'Join video calls and chat with your doctors',
-      icon: '💬',
+      icon: 'ðŸ’¬',
       onClick: () => navigate('/patient/consultations'),
     },
     {
       title: 'Treatment Plans',
       description: 'Track your ongoing treatments and medications',
-      icon: '💊',
+      icon: 'ðŸ’Š',
       onClick: () => navigate('/patient/treatment-plans'),
     },
     {
       title: 'Travel Planning',
       description: 'Plan your medical tourism journey',
-      icon: '✈️',
+      icon: 'âœˆï¸',
       onClick: () => navigate('/patient/travel-planning'),
     },
   ];
@@ -68,12 +75,12 @@ const PatientDashboard: React.FC = () => {
             Patient
           </span>
         </div>
-        
+
         <div className="flex items-center space-x-4">
           <p className="text-gray-600 text-lg">
             Welcome, {user.firstName || user.emailAddresses[0].emailAddress}
           </p>
-          <UserButton 
+          <UserButton
             appearance={{
               elements: {
                 avatarBox: "w-10 h-10"
@@ -86,9 +93,9 @@ const PatientDashboard: React.FC = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto p-6">
         {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-lg p-8 text-white mb-8">
+        <div className="bg-gradient-to-r from-[#00B16A] to-[#00B16A] rounded-2xl shadow-lg p-8 text-white mb-8">
           <h2 className="text-3xl font-bold mb-2">Welcome to Your Health Dashboard</h2>
-          <p className="text-blue-100 text-lg">
+          <p className="text-white text-lg">
             Manage your medical journey, connect with specialists, and take control of your health.
           </p>
         </div>
@@ -118,14 +125,23 @@ const PatientDashboard: React.FC = () => {
           {menuItems.map((item, index) => (
             <div
               key={index}
-              className="bg-white rounded-xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-shadow duration-300 hover:scale-[1.02] transform"
+              className={`bg-white rounded-xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-shadow duration-300 hover:scale-[1.02] transform ${
+                item.isHighlight ? 'ring-2 ring-green-500 ring-opacity-50' : ''
+              }`}
               onClick={item.onClick}
             >
               <div className="flex items-start space-x-4">
                 <div className="text-3xl">{item.icon}</div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  <h3 className={`text-lg font-semibold mb-2 ${
+                    item.isHighlight ? 'text-green-700' : 'text-gray-800'
+                  }`}>
                     {item.title}
+                    {item.isHighlight && (
+                      <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                        Important
+                      </span>
+                    )}
                   </h3>
                   <p className="text-gray-600 text-sm">
                     {item.description}
@@ -145,9 +161,9 @@ const PatientDashboard: React.FC = () => {
         <div className="mt-8 bg-white rounded-xl shadow p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Recent Activity</h3>
           <div className="text-center py-8 text-gray-500">
-            <div className="text-4xl mb-2">📝</div>
+            <div className="text-4xl mb-2">ðŸ“</div>
             <p>No recent activity yet.</p>
-            <p className="text-sm">Start by uploading your medical records or finding specialists.</p>
+            <p className="text-sm">Start by setting up your medical profile or finding specialists.</p>
           </div>
         </div>
       </div>

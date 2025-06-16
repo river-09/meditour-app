@@ -16,6 +16,7 @@ import Patients from './pages/doctor/Patients';
 
 // Patient Components
 import PatientDashboard from './pages/patient/Dashboard';
+import SetUpProfile from './pages/patient/SetUpProfile';
 
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -62,6 +63,11 @@ const App: React.FC = () => {
         <Route path="/patient/Dashboard" element={
           <ProtectedRoute requiredRole="patient">
             <PatientDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/patient/setup-profile" element={
+          <ProtectedRoute requiredRole="patient">
+            <SetUpProfile />
           </ProtectedRoute>
         } />
         <Route path="/patient/Dashboard" element={<Navigate to="/patient/Dashboard" replace />} />
