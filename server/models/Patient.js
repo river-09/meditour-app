@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-
+import mongoose from "mongoose";
 const patientSchema = new mongoose.Schema({
   // Clerk User ID for authentication
   clerkUserId: {
@@ -154,4 +153,4 @@ patientSchema.statics.findByClerkId = function(clerkUserId) {
 
 const Patient = mongoose.model('Patient', patientSchema);
 
-module.exports = Patient;
+export default Patient;

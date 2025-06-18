@@ -13,7 +13,7 @@ import ReviewRequests from './pages/doctor/ReviewRequests';
 import Appointments from './pages/doctor/Appointments';
 import UpcomingCalls from './pages/doctor/UpcomingCalls';
 import Patients from './pages/doctor/Patients';
-
+import SetUpProfiled from './pages/doctor/SetUpProfiled';
 // Patient Components
 import PatientDashboard from './pages/patient/Dashboard';
 import SetUpProfile from './pages/patient/SetUpProfile';
@@ -56,6 +56,11 @@ const App: React.FC = () => {
         <Route path="/doctor/patients" element={
           <ProtectedRoute requiredRole="doctor">
             <Patients />
+          </ProtectedRoute>
+        } />
+        <Route path="/doctor/setup-profile" element={
+          <ProtectedRoute requiredRole="doctor">
+            <SetUpProfiled />
           </ProtectedRoute>
         } />
         

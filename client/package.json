@@ -4,14 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --force",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.31.9",
+    "@daily-co/daily-js": "^0.80.0",
+    "@daily-co/daily-react": "^0.22.0",
     "@tailwindcss/vite": "^4.1.8",
+    "jotai": "^2.12.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2"

@@ -1,8 +1,14 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { getAuth } from '@clerk/express';
 
-// Ensure uploads directory exists
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure uploads directory exists (fixed path)
 const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -11,7 +17,9 @@ if (!fs.existsSync(uploadsDir)) {
 // Configure multer for file storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const userDir = path.join(uploadsDir, req.body.clerkUserId || 'temp');
+    // Get user ID from Clerk authentication
+    const { userId } = getAuth(req);
+    const userDir = path.join(uploadsDir, userId || 'temp');
     
     // Create user-specific directory if it doesn't exist
     if (!fs.existsSync(userDir)) {
@@ -28,16 +36,25 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter to only allow PDF files
+// Enhanced file filter for medical documents
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype === 'application/pdf') {
+  const allowedMimes = [
+    'application/pdf',
+    'image/jpeg',
+    'image/jpg', 
+    'image/png',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+
+  if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF files are allowed!'), false);
+    cb(new Error('Only PDF, images, and document files are allowed for medical records!'), false);
   }
 };
 
-// Configure multer
+// Configure multer with enhanced options
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
@@ -47,5 +64,39 @@ const upload = multer({
   }
 });
 
+// Error handling middleware for upload errors
+export const handleUploadError = (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        message: 'File too large. Maximum size is 10MB per file.',
+        error: 'FILE_TOO_LARGE'
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ 
+        message: 'Too many files. Maximum is 5 files per upload.',
+        error: 'TOO_MANY_FILES'
+      });
+    }
+    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({ 
+        message: 'Unexpected file field.',
+        error: 'UNEXPECTED_FILE'
+      });
+    }
+  }
+  
+  if (error.message.includes('Only PDF')) {
+    return res.status(400).json({ 
+      message: error.message,
+      error: 'INVALID_FILE_TYPE'
+    });
+  }
+
+  // Pass other errors to the next error handler
+  next(error);
+};
+
 // Export the upload middleware
-module.exports = upload;
+export default upload;

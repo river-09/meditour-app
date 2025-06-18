@@ -1,6 +1,7 @@
-const express = require('express');
-const Patient = require('../models/Patient');
-const upload = require('../middleware/upload');
+import express from 'express';
+import mongoose from 'mongoose';
+import upload from '../middleware/upload.js';
+import Patient from '../models/Patient.js'; 
 const router = express.Router();
 
 // Create or update patient profile
@@ -169,4 +170,4 @@ router.get('/profile-status/:clerkUserId', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
