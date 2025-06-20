@@ -15,7 +15,7 @@ const doctorProfileSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      'Cardiology', 'Dermatology', 'Neurology', 'Orthopedics', 
+      'Cardiology', 'Dermatology', 'Neurology', 'Orthopedics',
       'Pediatrics', 'Psychiatry', 'General Medicine', 'Surgery',
       'Gynecology', 'Ophthalmology', 'ENT', 'Radiology'
     ]

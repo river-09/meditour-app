@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useUser, UserButton } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import logo from '../../assets/logo.jpg';
 
 interface FormData {
@@ -29,6 +30,7 @@ interface FormData {
 const SetUpProfile: React.FC = () => {
   const { user } = useUser();
   const navigate = useNavigate();
+  const { authenticatedFetch, isLoaded } = useAuthenticatedFetch();
   
   const [formData, setFormData] = useState<FormData>({
     firstName: user?.firstName || '',
@@ -54,7 +56,13 @@ const SetUpProfile: React.FC = () => {
   });
 
   const [medicalReports, setMedicalReports] = useState<File[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Style object to fix text visibility
+  const inputStyle = {
+    color: '#1f2937',
+    backgroundColor: 'white'
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
     const { name, value } = e.target;
@@ -72,7 +80,7 @@ const SetUpProfile: React.FC = () => {
       alert('Please upload only PDF files');
       return;
     }
-
+    
     setMedicalReports(prev => [...prev, ...pdfFiles]);
   };
 
@@ -80,26 +88,41 @@ const SetUpProfile: React.FC = () => {
     setMedicalReports(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
+    
+    // Check if authentication is ready
+    if (!isLoaded) {
+      alert('Please wait for authentication to load');
+      return;
+    }
+
+    if (!user?.id) {
+      alert('User not authenticated');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const submitData = new FormData();
       
+      // Add all form data
       Object.entries(formData).forEach(([key, value]) => {
         if (value) {
           submitData.append(key, value);
         }
       });
 
-      submitData.append('clerkUserId', user?.id || '');
+      submitData.append('clerkUserId', user.id);
 
+      // Add medical reports
       medicalReports.forEach((file) => {
         submitData.append('medicalReports', file);
       });
 
-      const response = await fetch('http://localhost:5000/api/patient/profile', {
+      // Use authenticatedFetch
+      const response = await authenticatedFetch('http://localhost:3000/api/patient/profile', {
         method: 'POST',
         body: submitData,
       });
@@ -107,8 +130,24 @@ const SetUpProfile: React.FC = () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
+        // Show success message
         alert('Profile created successfully!');
-        navigate('/patient/dashboard');
+        
+        // Dispatch custom event to notify dashboard
+        window.dispatchEvent(new CustomEvent('profileUpdated'));
+        
+        // Clear any potential cached data
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            names.forEach(name => {
+              caches.delete(name);
+            });
+          });
+        }
+        
+        // Navigate back to dashboard
+        navigate('/patient/dashboard', { replace: true });
+        
       } else {
         throw new Error(result.message || 'Failed to create profile');
       }
@@ -121,7 +160,8 @@ const SetUpProfile: React.FC = () => {
     }
   };
 
-  if (!user) {
+  // Show loading state while authentication is loading
+  if (!user || !isLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Loading...</div>
@@ -132,29 +172,24 @@ const SetUpProfile: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Navigation Bar */}
-      <div className="w-full bg-white shadow-sm py-4 px-8 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-          <img src={logo} alt="Logo" className="w-10 h-10 rounded-full object-cover" />
-          <h1 className="text-2xl font-bold text-gray-800">MedTour</h1>
-          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-            Patient
-          </span>
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <img src={logo} alt="MedTour" className="h-10 w-10 rounded-full" />
+              <span className="text-xl font-bold text-gray-900">MedTour</span>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                Patient
+              </span>
+            </div>
+            <UserButton afterSignOutUrl="/auth/signin" />
+          </div>
         </div>
-
-        <div className="flex items-center space-x-4">
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "w-10 h-10"
-              }
-            }}
-          />
-        </div>
-      </div>
+      </nav>
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <button
             onClick={() => navigate('/patient/dashboard')}
             className="btn-medigreen font-medium"
@@ -163,7 +198,7 @@ const SetUpProfile: React.FC = () => {
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border p-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Set Up Your Medical Profile</h1>
             <p className="text-gray-600">
@@ -185,10 +220,12 @@ const SetUpProfile: React.FC = () => {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Last Name
@@ -198,10 +235,12 @@ const SetUpProfile: React.FC = () => {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Email
@@ -211,10 +250,12 @@ const SetUpProfile: React.FC = () => {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Phone Number
@@ -224,10 +265,12 @@ const SetUpProfile: React.FC = () => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date of Birth
@@ -237,10 +280,12 @@ const SetUpProfile: React.FC = () => {
                     name="dateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Gender
@@ -249,7 +294,8 @@ const SetUpProfile: React.FC = () => {
                     name="gender"
                     value={formData.gender}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     required
                   >
                     <option value="">Select Gender</option>
@@ -275,10 +321,11 @@ const SetUpProfile: React.FC = () => {
                     name="height"
                     value={formData.height}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
-                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Weight (kg)
@@ -288,10 +335,11 @@ const SetUpProfile: React.FC = () => {
                     name="weight"
                     value={formData.weight}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
-                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Blood Group
@@ -300,7 +348,8 @@ const SetUpProfile: React.FC = () => {
                     name="bloodGroup"
                     value={formData.bloodGroup}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                   >
                     <option value="">Select Blood Group</option>
                     <option value="A+">A+</option>
@@ -329,10 +378,12 @@ const SetUpProfile: React.FC = () => {
                     name="emergencyContact"
                     value={formData.emergencyContact}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Emergency Contact Phone
@@ -342,7 +393,8 @@ const SetUpProfile: React.FC = () => {
                     name="emergencyPhone"
                     value={formData.emergencyPhone}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     required
                   />
                 </div>
@@ -362,10 +414,12 @@ const SetUpProfile: React.FC = () => {
                     value={formData.allergies}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
-                    placeholder="List any allergies you have..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
+                    placeholder="List any known allergies..."
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Current Medications
@@ -375,10 +429,12 @@ const SetUpProfile: React.FC = () => {
                     value={formData.currentMedications}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
-                    placeholder="List current medications..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
+                    placeholder="List current medications and dosages..."
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Past Illnesses
@@ -388,10 +444,12 @@ const SetUpProfile: React.FC = () => {
                     value={formData.pastIllnesses}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
-                    placeholder="Describe any past illnesses..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
+                    placeholder="Describe any past illnesses or conditions..."
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Surgical History
@@ -401,10 +459,12 @@ const SetUpProfile: React.FC = () => {
                     value={formData.surgicalHistory}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
-                    placeholder="List any surgeries you've had..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
+                    placeholder="List any previous surgeries..."
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Family Medical History
@@ -414,7 +474,8 @@ const SetUpProfile: React.FC = () => {
                     value={formData.familyMedicalHistory}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                     placeholder="Describe family medical history..."
                   />
                 </div>
@@ -433,7 +494,8 @@ const SetUpProfile: React.FC = () => {
                     name="smokingStatus"
                     value={formData.smokingStatus}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                   >
                     <option value="">Select Status</option>
                     <option value="never">Never smoked</option>
@@ -441,6 +503,7 @@ const SetUpProfile: React.FC = () => {
                     <option value="current">Current smoker</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Drinking Status
@@ -449,7 +512,8 @@ const SetUpProfile: React.FC = () => {
                     name="drinkingStatus"
                     value={formData.drinkingStatus}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                   >
                     <option value="">Select Status</option>
                     <option value="never">Never</option>
@@ -458,6 +522,7 @@ const SetUpProfile: React.FC = () => {
                     <option value="former">Former drinker</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Exercise Frequency
@@ -466,7 +531,8 @@ const SetUpProfile: React.FC = () => {
                     name="exerciseFrequency"
                     value={formData.exerciseFrequency}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
                   >
                     <option value="">Select Frequency</option>
                     <option value="none">No exercise</option>
@@ -475,17 +541,19 @@ const SetUpProfile: React.FC = () => {
                     <option value="heavy">Heavy (5+ times/week)</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Dietary Restrictions
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     name="dietaryRestrictions"
                     value={formData.dietaryRestrictions}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 bg-white"
-                    placeholder="Any dietary restrictions..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={inputStyle}
+                    placeholder="List any dietary restrictions or preferences..."
                   />
                 </div>
               </div>
@@ -496,30 +564,36 @@ const SetUpProfile: React.FC = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Medical Reports (Optional)</h2>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                 <div className="text-center">
-                  <div className="text-3xl text-gray-400 mb-4">📄</div>
-                  <label className="cursor-pointer">
-                    <span className="text-green-600 hover:text-green-700 font-medium">
-                      Upload Medical Reports (PDF only)
-                    </span>
-                    <input
-                      type="file"
-                      multiple
-                      accept=".pdf"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
-                  <p className="text-sm text-gray-500 mt-2">
-                    You can upload multiple PDF files of your medical reports, lab results, etc.
-                  </p>
+                  <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <div className="mt-4">
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <span className="mt-2 block text-sm font-medium text-gray-900">
+                        Upload Medical Reports (PDF only)
+                      </span>
+                      <input
+                        id="file-upload"
+                        name="file-upload"
+                        type="file"
+                        className="sr-only"
+                        multiple
+                        accept=".pdf"
+                        onChange={handleFileUpload}
+                      />
+                    </label>
+                    <p className="mt-1 text-sm text-gray-500">
+                      You can upload multiple PDF files of your medical reports, lab results, etc.
+                    </p>
+                  </div>
                 </div>
 
                 {medicalReports.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Uploaded Files:</h4>
-                    <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Uploaded Files:</h4>
+                    <ul className="space-y-2">
                       {medicalReports.map((file: File, index: number) => (
-                        <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <li key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
                           <span className="text-sm text-gray-700">{file.name}</span>
                           <button
                             type="button"
@@ -528,16 +602,16 @@ const SetUpProfile: React.FC = () => {
                           >
                             Remove
                           </button>
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Submit Button */}
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end space-x-4 pt-6">
               <button
                 type="button"
                 onClick={() => navigate('/patient/dashboard')}
@@ -548,7 +622,7 @@ const SetUpProfile: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 disabled:opacity-50"
+                className="px-6 py-2 btn-medigreen font-medium"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Creating Profile...' : 'Create Profile'}

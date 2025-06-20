@@ -78,6 +78,22 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
+
+app.get('/', (req, res) => {
+  res.json({ message: 'MedTour API Server is running', timestamp: new Date() });
+});
+
+// Public routes (no auth required for doctor search)
+app.use('/api/doctor', doctorRoutes);
+
+// Protected routes with authentication
+app.use('/api/review-requests', requireAuth(), reviewRequestRoutes);
+app.use('/api/patient', requireAuth(), patientRoutes);
+app.use('/api/appointments', requireAuth(), appointmentRoutes);
+
+
+
+
 // 404 handler - should be last
 app.use('*', (req, res) => {
   console.log(`❌ 404 - Route not found: ${req.method} ${req.originalUrl}`);
@@ -86,7 +102,7 @@ app.use('*', (req, res) => {
 
 // Connect to database and start server
 connectDB().then(() => {
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`✅ MedTour server running on port ${PORT}`);
     console.log('📋 Registered protected routes:');
