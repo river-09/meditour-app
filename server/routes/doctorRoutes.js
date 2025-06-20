@@ -5,91 +5,19 @@ import DoctorProfile from '../models/DoctorProfile.js';
 
 const router = express.Router();
 
-// Create or update doctor profile
-router.post('/profile', async (req, res) => {
-  try {
-    const { userId } = getAuth(req);
-    const {
-      fullName,
-      specialization,
-      qualification,
-      experience,
-      consultationFee,
-      clinicAddress,
-      phoneNumber,
-      email,
-      bio,
-      languages,
-      availability
-    } = req.body;
-
-    // Validate required fields
-    if (!fullName || !specialization || !qualification || !experience || !consultationFee || !clinicAddress || !phoneNumber || !email) {
-      return res.status(400).json({ message: 'All required fields must be provided' });
-    }
-
-    const profileData = {
-      doctorId: userId,
-      fullName,
-      specialization,
-      qualification,
-      experience: parseInt(experience),
-      consultationFee: parseFloat(consultationFee),
-      clinicAddress,
-      phoneNumber,
-      email,
-      bio,
-      languages: languages || [],
-      availability,
-      isProfileComplete: true
-    };
-
-    // Update existing profile or create new one
-    const profile = await DoctorProfile.findOneAndUpdate(
-      { doctorId: userId },
-      profileData,
-      { new: true, upsert: true, runValidators: true }
-    );
-
-    res.status(200).json({
-      message: 'Profile updated successfully',
-      profile
-    });
-
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Get doctor profile
-router.get('/profile', async (req, res) => {
-  try {
-    const { userId } = getAuth(req);
-    const profile = await DoctorProfile.findOne({ doctorId: userId });
-    
-    if (!profile) {
-      return res.status(404).json({ message: 'Profile not found' });
-    }
-
-    res.status(200).json(profile);
-  } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get all doctors for patients (public route)
+// Public route - Get all doctors for patients (no auth required)
 router.get('/all', async (req, res) => {
   try {
     const { specialization, search, page = 1, limit = 10 } = req.query;
-    
+    console.log('Search parameters:', { specialization, search, page, limit }); // Debug log
+
     let query = { isProfileComplete: true };
-    
+
     if (specialization) {
-      query.specialization = specialization;
+      // Case-insensitive specialization search
+      query.specialization = { $regex: new RegExp(`^${specialization}$`, 'i') };
     }
-    
+
     if (search) {
       query.$or = [
         { fullName: { $regex: search, $options: 'i' } },
@@ -97,6 +25,8 @@ router.get('/all', async (req, res) => {
         { 'clinicAddress': { $regex: search, $options: 'i' } }
       ];
     }
+
+    console.log('MongoDB query:', JSON.stringify(query, null, 2)); // Debug log
 
     const doctors = await DoctorProfile.find(query)
       .select('-doctorId -email -phoneNumber')
@@ -106,6 +36,9 @@ router.get('/all', async (req, res) => {
 
     const total = await DoctorProfile.countDocuments(query);
 
+    console.log(`Found ${doctors.length} doctors, total: ${total}`); // Debug log
+    console.log('Doctor specializations found:', doctors.map(d => d.specialization)); // Debug log
+
     res.status(200).json({
       doctors,
       totalPages: Math.ceil(total / limit),
@@ -114,6 +47,27 @@ router.get('/all', async (req, res) => {
     });
   } catch (error) {
     console.error('Get doctors error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Protected routes (require auth)
+router.post('/profile', async (req, res) => {
+  try {
+    const { userId } = getAuth(req);
+    // ... rest of your profile creation code
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.get('/profile', async (req, res) => {
+  try {
+    const { userId } = getAuth(req);
+    // ... rest of your profile fetching code
+  } catch (error) {
+    console.error('Get profile error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

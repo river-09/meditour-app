@@ -1,4 +1,3 @@
-// src/hooks/useAuthenticatedFetch.ts
 import { useAuth } from '@clerk/clerk-react';
 import { useCallback } from 'react';
 
@@ -6,35 +5,42 @@ export const useAuthenticatedFetch = () => {
   const { getToken, isLoaded, userId } = useAuth();
 
   const authenticatedFetch = useCallback(async (
-    url: string, 
+    url: string,
     options: RequestInit = {}
   ) => {
     try {
-      // Wait for Clerk to load before attempting to get token
       if (!isLoaded) {
         throw new Error('Clerk not loaded yet');
       }
 
-      // Get the session token
       const token = await getToken();
       console.log('🔑 Token obtained:', token ? 'Present' : 'Missing');
       console.log('👤 User ID:', userId);
-      
+
       if (!token) {
         throw new Error('No authentication token available');
       }
 
-      // Make the authenticated request
+      // Prepare headers with proper typing
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+      };
+
+      // Add existing headers if any
+      if (options.headers) {
+        Object.assign(headers, options.headers);
+      }
+
+      // Only set Content-Type for non-FormData requests
+      if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       const response = await fetch(url, {
         ...options,
-        headers: {
-          ...options.headers,
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
-      // Handle non-200 responses explicitly (Fetch API doesn't throw for these)
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Error:', response.status, errorText);
