@@ -8,7 +8,8 @@ import {
   useVideoTrack,
   useAudioTrack,
   DailyVideo,
-  DailyAudio
+  DailyAudio,
+  DailyAudioTrack
 } from '@daily-co/daily-react';
 
 interface VideoCallProps {
@@ -221,7 +222,7 @@ const ParticipantTile: React.FC<{
         type={'video'}      />
       
       {/* Audio component for remote participants */}
-      {!isLocal && <DailyAudio sessionId={participantId} />}
+      {!isLocal && <DailyAudioTrack sessionId={participantId} />}
       
       {/* Participant info overlay */}
       <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 rounded px-2 py-1">

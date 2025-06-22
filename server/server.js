@@ -63,10 +63,18 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'MedTour API Server is running', timestamp: new Date() });
+});
+
+// FIXED: Proper route registration (no duplicates)
+// Public routes (no auth required for doctor search)
+app.use('/api/doctor', doctorRoutes);
+
 // Protected routes with authentication
 app.use('/api/review-requests', requireAuth(), reviewRequestRoutes);
 app.use('/api/patient', requireAuth(), patientRoutes);
-app.use('/api/doctor', requireAuth(), doctorRoutes);
 app.use('/api/appointments', requireAuth(), appointmentRoutes);
 
 // Error handling middleware
@@ -76,23 +84,8 @@ app.use((err, req, res, next) => {
     return res.status(401).json({ message: 'Unauthorized access' });
   }
   res.status(500).json({ message: 'Internal server error' });
+  next(); // Add this line
 });
-
-
-app.get('/', (req, res) => {
-  res.json({ message: 'MedTour API Server is running', timestamp: new Date() });
-});
-
-// Public routes (no auth required for doctor search)
-app.use('/api/doctor', doctorRoutes);
-
-// Protected routes with authentication
-app.use('/api/review-requests', requireAuth(), reviewRequestRoutes);
-app.use('/api/patient', requireAuth(), patientRoutes);
-app.use('/api/appointments', requireAuth(), appointmentRoutes);
-
-
-
 
 // 404 handler - should be last
 app.use('*', (req, res) => {
@@ -105,10 +98,10 @@ connectDB().then(() => {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`✅ MedTour server running on port ${PORT}`);
-    console.log('📋 Registered protected routes:');
+    console.log('📋 Registered routes:');
+    console.log('  - /api/doctor (public for search)');
     console.log('  - /api/review-requests (requires auth)');
     console.log('  - /api/patient (requires auth)');
-    console.log('  - /api/doctor (requires auth)');
     console.log('  - /api/appointments (requires auth)');
     console.log('📋 Public test routes:');
     console.log('  - GET /test');

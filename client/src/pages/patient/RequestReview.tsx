@@ -6,6 +6,7 @@ import logo from '../../assets/logo.jpg';
 
 interface Doctor {
   _id: string;
+  doctorId: string; // Clerk userId
   fullName: string;
   specialization: string;
   qualification: string;
@@ -24,7 +25,7 @@ interface Doctor {
 const RequestReview: React.FC = () => {
   const { user } = useUser();
   const navigate = useNavigate();
-  const { doctorId } = useParams<{ doctorId: string }>();
+  const { doctorId } = useParams<{ doctorId: string }>(); // This is MongoDB _id
   const { authenticatedFetch } = useAuthenticatedFetch();
   
   const [doctor, setDoctor] = useState<Doctor | null>(null);
@@ -41,7 +42,6 @@ const RequestReview: React.FC = () => {
       try {
         console.log('Fetching doctor with ID:', doctorId);
         
-        // Use the patient route that you have in patientRoutes.js
         const response = await authenticatedFetch(`/api/patient/doctor/${doctorId}`);
         
         if (response.ok) {
@@ -71,9 +71,39 @@ const RequestReview: React.FC = () => {
 
   const handleRequestReview = async () => {
     try {
-      // This will be implemented when you create the review request functionality
-      setRequestSent(true);
-      alert('Review request sent successfully! The doctor will be able to view your medical information.');
+      if (!doctor || !user) return;
+
+      console.log('🔍 Sending review request with:', {
+        doctorClerkId: doctor.doctorId, // Use doctor.doctorId (Clerk userId)
+        doctorMongoId: doctor._id,      // This is MongoDB _id
+        patientName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.emailAddresses[0].emailAddress
+      });
+
+      const requestData = {
+        doctorId: doctor.doctorId, // ✅ CRITICAL: Use doctorId (Clerk userId) not _id
+        patientName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.emailAddresses[0].emailAddress,
+        patientEmail: user.emailAddresses[0].emailAddress,
+        condition: 'General Consultation',
+        message: 'Patient is requesting a medical review and consultation.'
+      };
+
+      const response = await authenticatedFetch('/api/review-requests/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (response.ok) {
+        setRequestSent(true);
+        console.log('✅ Review request sent successfully');
+        alert('Review request sent successfully! The doctor will be able to view your medical information.');
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Failed to send review request:', errorData);
+        throw new Error(errorData.message || 'Failed to send review request');
+      }
     } catch (error) {
       console.error('Error sending review request:', error);
       alert('Failed to send review request. Please try again.');
@@ -85,10 +115,37 @@ const RequestReview: React.FC = () => {
     return '★'.repeat(stars) + '☆'.repeat(5 - stars);
   };
 
-  if (loading) {
+  /* if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Loading doctor details...</div>
+      </div>
+    );
+  } */
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <nav className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-4">
+                <img src={logo} alt="MedTour" className="h-10 w-10 rounded-full" />
+                <span className="text-xl font-bold text-gray-900">MedTour</span>
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                  Patient
+                </span>
+              </div>
+              <UserButton afterSignOutUrl="/auth/signin" />
+            </div>
+          </div>
+        </nav>
+        
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -133,7 +190,7 @@ const RequestReview: React.FC = () => {
             <div className="flex items-center space-x-4">
               <img src={logo} alt="MedTour" className="h-10 w-10 rounded-full" />
               <span className="text-xl font-bold text-gray-900">MedTour</span>
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                 Patient
               </span>
             </div>
@@ -153,7 +210,7 @@ const RequestReview: React.FC = () => {
           </button>
         </div>
 
-        {/* Request Review Card */}
+        {/* Request Review Card - Original UI */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {/* Header Section */}
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6 text-white">
@@ -255,7 +312,7 @@ const RequestReview: React.FC = () => {
               </div>
             </div>
 
-            {/* Request Review Section */}
+            {/* Request Review Section - Original Simple UI */}
             <div className="border-t border-gray-200 pt-8">
               <div className="text-center">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">
@@ -289,7 +346,7 @@ const RequestReview: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div> 
   );
 };
 

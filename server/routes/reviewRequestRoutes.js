@@ -98,14 +98,34 @@ router.get('/doctor/:doctorId', async (req, res) => {
 });
 
 // Get dashboard stats for doctor
+// Get dashboard stats for doctor
 router.get('/stats/:doctorId', async (req, res) => {
   try {
     const { userId } = getAuth(req);
     const { doctorId } = req.params;
+    
+    console.log('🔍 Stats Debug:', {
+      requestedDoctorId: doctorId,
+      authenticatedUserId: userId,
+      match: userId === doctorId
+    });
 
     // Verify the doctor is requesting their own stats
     if (userId !== doctorId) {
+      console.log('❌ Access denied: userId !== doctorId');
       return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Add debug query to see what's in the database
+    const allRequests = await ReviewRequest.find({ doctorId: doctorId });
+    console.log('📋 All requests for doctor:', allRequests.length);
+    if (allRequests.length > 0) {
+      console.log('📋 Sample request:', {
+        id: allRequests[0]._id,
+        doctorId: allRequests[0].doctorId,
+        patientName: allRequests[0].patientName,
+        status: allRequests[0].status
+      });
     }
 
     const stats = await ReviewRequest.aggregate([
@@ -117,6 +137,8 @@ router.get('/stats/:doctorId', async (req, res) => {
         }
       }
     ]);
+
+    console.log('📊 Aggregated stats:', stats);
 
     const formattedStats = {
       pending: 0,
@@ -131,13 +153,14 @@ router.get('/stats/:doctorId', async (req, res) => {
       formattedStats.total += stat.count;
     });
 
+    console.log('📊 Formatted stats:', formattedStats);
     res.status(200).json(formattedStats);
-
   } catch (error) {
     console.error('Get stats error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 // Update review request status (approve/reject)
 router.patch('/:requestId/status', async (req, res) => {
   try {
