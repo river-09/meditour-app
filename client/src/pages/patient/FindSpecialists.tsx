@@ -23,7 +23,7 @@ const FindSpecialists: React.FC = () => {
   const { user } = useUser();
   const navigate = useNavigate();
   const { authenticatedFetch } = useAuthenticatedFetch();
-  
+
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,30 +62,30 @@ const FindSpecialists: React.FC = () => {
     setLoading(true);
     try {
       let url = `/api/doctor/all?specialization=${encodeURIComponent(specialization)}`;
-      
+
       if (searchTerm) {
         url += `&search=${encodeURIComponent(searchTerm)}`;
       }
 
       const response = await authenticatedFetch(url);
-      
+
       if (response.ok) {
         const data = await response.json();
         let filteredDoctors = data.doctors || [];
 
         // Apply client-side filters
         if (filters.minExperience) {
-          filteredDoctors = filteredDoctors.filter((doc: Doctor) => 
+          filteredDoctors = filteredDoctors.filter((doc: Doctor) =>
             doc.experience >= parseInt(filters.minExperience)
           );
         }
         if (filters.maxFee) {
-          filteredDoctors = filteredDoctors.filter((doc: Doctor) => 
+          filteredDoctors = filteredDoctors.filter((doc: Doctor) =>
             doc.consultationFee <= parseInt(filters.maxFee)
           );
         }
         if (filters.location) {
-          filteredDoctors = filteredDoctors.filter((doc: Doctor) => 
+          filteredDoctors = filteredDoctors.filter((doc: Doctor) =>
             doc.clinicAddress.toLowerCase().includes(filters.location.toLowerCase())
           );
         }
@@ -181,7 +181,7 @@ const FindSpecialists: React.FC = () => {
           /* Specialization Selection */
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Choose a Specialization</h2>
-            
+
             {/* Search Bar */}
             <div className="mb-6">
               <input
@@ -197,28 +197,28 @@ const FindSpecialists: React.FC = () => {
             {/* Specializations Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {specializations
-                .filter(spec => 
+                .filter(spec =>
                   spec.toLowerCase().includes(searchTerm.toLowerCase())
                 )
                 .map((specialization) => (
-                <div
-                  key={specialization}
-                  onClick={() => handleSpecializationSelect(specialization)}
-                  className="p-6 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:border-blue-300 hover:bg-blue-50"
-                >
-                  <div className="text-center">
-                    <div className="text-4xl mb-3">
-                      {specializationIcons[specialization] || '🩺'}
+                  <div
+                    key={specialization}
+                    onClick={() => handleSpecializationSelect(specialization)}
+                    className="p-6 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:border-blue-300 hover:bg-blue-50"
+                  >
+                    <div className="text-center">
+                      <div className="text-4xl mb-3">
+                        {specializationIcons[specialization] || '🩺'}
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {specialization}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Find {specialization.toLowerCase()} specialists
+                      </p>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {specialization}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Find {specialization.toLowerCase()} specialists
-                    </p>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         ) : (
@@ -238,7 +238,7 @@ const FindSpecialists: React.FC = () => {
                   <h2 className="text-2xl font-bold text-gray-900">{selectedSpecialization} Specialists</h2>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="btn-medigreen font-medium"
@@ -265,7 +265,7 @@ const FindSpecialists: React.FC = () => {
                       style={{ color: '#1f2937', backgroundColor: 'white' }}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Min Experience (years)
@@ -274,12 +274,12 @@ const FindSpecialists: React.FC = () => {
                       type="number"
                       placeholder="e.g., 5"
                       value={filters.minExperience}
-                      onChange={(e) => setFilters({...filters, minExperience: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, minExperience: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ color: '#1f2937', backgroundColor: 'white' }}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Max Consultation Fee
@@ -288,12 +288,12 @@ const FindSpecialists: React.FC = () => {
                       type="number"
                       placeholder="e.g., 1000"
                       value={filters.maxFee}
-                      onChange={(e) => setFilters({...filters, maxFee: e.target.value})}
+                      onChange={(e) => setFilters({ ...filters, maxFee: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ color: '#1f2937', backgroundColor: 'white' }}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Sort By
@@ -323,7 +323,7 @@ const FindSpecialists: React.FC = () => {
             {/* Doctor Cards */}
             {loading ? (
               <div className="text-center py-8">
-                <div className="text-lg text-gray-600">Loading doctors...</div>
+                <div className="mt-4 text-white-600">Loading doctors...</div>
               </div>
             ) : doctors.length === 0 ? (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -344,7 +344,7 @@ const FindSpecialists: React.FC = () => {
                         </h3>
                         <p className="text-blue-600 font-medium mb-2">{doctor.specialization}</p>
                         <p className="text-gray-700 text-sm mb-2 font-medium">{doctor.qualification}</p>
-                        
+
                         {/* Rating */}
                         <div className="flex items-center space-x-2 mb-3">
                           <span className="text-yellow-400 text-lg">{renderStars(doctor.rating || 4)}</span>
@@ -353,7 +353,7 @@ const FindSpecialists: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="text-right">
                         <div className="text-2xl font-bold text-green-600 mb-1">
                           ${doctor.consultationFee}
@@ -390,7 +390,7 @@ const FindSpecialists: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 

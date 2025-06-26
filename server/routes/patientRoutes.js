@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import upload from '../middleware/upload.js';
 import Patient from '../models/Patient.js';
 import DoctorProfile from '../models/DoctorProfile.js';
+import { getAuth } from '@clerk/express';
+import ReviewRequest from '../models/ReviewRequest.js';
+import Appointment from '../models/Appointment.js';
 
 const router = express.Router();
 
@@ -173,7 +176,7 @@ router.get('/profile-status/:clerkUserId', async (req, res) => {
 });
 
 // Get all specializations
-router.get('/specializations', async (req, res) => {
+router.get('/find-doctors', async (req, res) => {
   try {
     const specializations = [
       'Cardiology', 'Dermatology', 'Neurology', 'Orthopedics',
@@ -244,22 +247,27 @@ router.get('/doctors/by-specialization/:specialization', async (req, res) => {
 router.get('/doctor/:doctorId', async (req, res) => {
   try {
     const { doctorId } = req.params;
-    
-    const doctor = await DoctorProfile.findById(doctorId)
-      .select('-doctorId -email -phoneNumber'); // Hide sensitive info
-    
+    const doctor = await DoctorProfile.findById(doctorId);
+    // ✅ DON'T exclude doctorId - we need it for review requests
+    // Remove this line: .select('-doctorId -email -phoneNumber');
+
     if (!doctor) {
       return res.status(404).json({
         success: false,
         message: 'Doctor not found'
       });
     }
-    
+
+    // ✅ Return doctor with doctorId but hide sensitive info
+    const doctorData = doctor.toObject();
+    delete doctorData.email;
+    delete doctorData.phoneNumber;
+    // Keep doctorId - it's needed for review requests
+
     res.json({
       success: true,
-      doctor
+      doctor: doctorData
     });
-
   } catch (error) {
     console.error('Error fetching doctor details:', error);
     res.status(500).json({
@@ -269,5 +277,91 @@ router.get('/doctor/:doctorId', async (req, res) => {
     });
   }
 });
+
+router.get('/review-requests/:patientId', async (req, res) => {
+  try {
+    const { userId } = getAuth(req);
+    const { patientId } = req.params;
+
+    if (userId !== patientId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const requests = await ReviewRequest.find({ patientId })
+      .sort({ submittedOn: -1 })
+      .limit(10);
+
+    res.json({
+      success: true,
+      requests
+    });
+  } catch (error) {
+    console.error('Error fetching patient review requests:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get patient's appointments
+router.get('/appointments/:patientId', async (req, res) => {
+  try {
+    const { userId } = getAuth(req);
+    const { patientId } = req.params;
+    const { status } = req.query;
+
+    if (userId !== patientId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    let query = { patientId };
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const appointments = await Appointment.find(query)
+      .sort({ scheduledDate: -1 });
+
+    res.json({
+      success: true,
+      appointments
+    });
+  } catch (error) {
+    console.error('Error fetching patient appointments:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get patient's upcoming calls
+router.get('/upcoming-calls/:patientId', async (req, res) => {
+  try {
+    const { userId } = getAuth(req);
+    const { patientId } = req.params;
+
+    if (userId !== patientId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const now = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(now.getDate() + 7);
+
+    const calls = await Appointment.find({
+      patientId,
+      status: 'scheduled',
+      scheduledDate: {
+        $gte: now,
+        $lte: nextWeek
+      }
+    }).sort({ scheduledDate: 1 });
+
+    res.json({
+      success: true,
+      calls
+    });
+  } catch (error) {
+    console.error('Error fetching upcoming calls:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 export default router;

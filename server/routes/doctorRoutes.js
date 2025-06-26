@@ -51,11 +51,39 @@ router.get('/all', async (req, res) => {
   }
 });
 
-// Protected routes (require auth)
+// In doctorRoutes.js, complete these routes:
+
 router.post('/profile', async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    // ... rest of your profile creation code
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const profileData = req.body;
+    
+    // Check if profile exists
+    let doctorProfile = await DoctorProfile.findOne({ doctorId: userId });
+    
+    if (doctorProfile) {
+      // Update existing profile
+      Object.assign(doctorProfile, profileData);
+      doctorProfile.isProfileComplete = true;
+      await doctorProfile.save();
+    } else {
+      // Create new profile
+      doctorProfile = new DoctorProfile({
+        ...profileData,
+        doctorId: userId,
+        isProfileComplete: true
+      });
+      await doctorProfile.save();
+    }
+
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      profile: doctorProfile
+    });
   } catch (error) {
     console.error('Profile update error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -65,11 +93,22 @@ router.post('/profile', async (req, res) => {
 router.get('/profile', async (req, res) => {
   try {
     const { userId } = getAuth(req);
-    // ... rest of your profile fetching code
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const doctorProfile = await DoctorProfile.findOne({ doctorId: userId });
+    
+    if (!doctorProfile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    res.status(200).json(doctorProfile);
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 export default router;

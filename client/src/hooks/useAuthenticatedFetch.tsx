@@ -2,7 +2,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useCallback } from 'react';
 
 export const useAuthenticatedFetch = () => {
-  const { getToken, isLoaded, userId } = useAuth();
+  const { getToken, isLoaded, userId, isSignedIn } = useAuth();
 
   const authenticatedFetch = useCallback(async (
     url: string,
@@ -13,38 +13,59 @@ export const useAuthenticatedFetch = () => {
         throw new Error('Clerk not loaded yet');
       }
 
-      const token = await getToken();
-      console.log('🔑 Token obtained:', token ? 'Present' : 'Missing');
-      console.log('👤 User ID:', userId);
-
-      if (!token) {
-        throw new Error('No authentication token available');
+      if (!isSignedIn) {
+        throw new Error('User not signed in');
       }
 
-      // Prepare headers with proper typing
+      // ✅ Remove template parameter - use default Clerk token
+      let token = await getToken({ 
+        skipCache: true // Force fresh token
+      });
+      
+      if (!token) {
+        // Try one more time with a delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        token = await getToken({ skipCache: true });
+        if (!token) {
+          throw new Error('Unable to obtain authentication token');
+        }
+      }
+
       const headers: Record<string, string> = {
         'Authorization': `Bearer ${token}`,
+        ...options.headers as Record<string, string>
       };
 
-      // Add existing headers if any
-      if (options.headers) {
-        Object.assign(headers, options.headers);
-      }
-
-      // Only set Content-Type for non-FormData requests
       if (!(options.body instanceof FormData)) {
         headers['Content-Type'] = 'application/json';
       }
 
-      const response = await fetch(url, {
+      // ✅ Use environment variable instead of hardcoded URL
+      const fullUrl = url.startsWith('http') ? url : `${import.meta.env.VITE_API_BASE_URL}${url}`;
+      
+      const response = await fetch(fullUrl, {
         ...options,
         headers,
+        credentials: 'include'
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error:', response.status, errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      // Handle authentication errors
+      if (response.status === 401) {
+        console.log('🔄 Token expired, attempting refresh...');
+        token = await getToken({ skipCache: true });
+        if (token) {
+          // Retry with new token
+          const retryResponse = await fetch(fullUrl, {
+            ...options,
+            headers: {
+              ...headers,
+              'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include'
+          });
+          return retryResponse;
+        }
+        throw new Error('Authentication failed - please sign in again');
       }
 
       return response;
@@ -52,7 +73,7 @@ export const useAuthenticatedFetch = () => {
       console.error('❌ Authentication fetch error:', error);
       throw error;
     }
-  }, [getToken, isLoaded, userId]);
+  }, [getToken, isLoaded, userId, isSignedIn]);
 
   return { authenticatedFetch, userId, isLoaded };
 };

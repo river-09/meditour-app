@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useAuth } from '@clerk/clerk-react';
 import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 import TopBar from '../../components/TopBar';
 
@@ -135,6 +135,8 @@ const ReviewRequests: React.FC = () => {
       setLoading(false);
     }
   };
+
+  
 
   return (
     <div className="min-h-screen bg-gray-100">
